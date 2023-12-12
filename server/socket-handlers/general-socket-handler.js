@@ -3,6 +3,7 @@ const { Settings } = require("../settings");
 const { sendInfo } = require("../client");
 const { checkLogin } = require("../util-server");
 const GameResolver = require("gamedig/lib/GameResolver");
+const { testChrome } = require("../monitor-types/real-browser-monitor-type");
 
 let gameResolver = new GameResolver();
 let gameList = null;
@@ -41,10 +42,50 @@ module.exports.generalSocketHandler = (socket, server) => {
     });
 
     socket.on("getGameList", async (callback) => {
-        callback({
-            ok: true,
-            gameList: getGameList(),
-        });
+        try {
+            checkLogin(socket);
+            callback({
+                ok: true,
+                gameList: getGameList(),
+            });
+        } catch (e) {
+            callback({
+                ok: false,
+                msg: e.message,
+            });
+        }
     });
 
+    socket.on("testChrome", (executable, callback) => {
+        try {
+            checkLogin(socket);
+            // Just noticed that await call could block the whole socket.io server!!! Use pure promise instead.
+            testChrome(executable).then((version) => {
+                callback({
+                    ok: true,
+                    msg: "Found Chromium/Chrome. Version: " + version,
+                });
+            }).catch((e) => {
+                callback({
+                    ok: false,
+                    msg: e.message,
+                });
+            });
+        } catch (e) {
+            callback({
+                ok: false,
+                msg: e.message,
+            });
+        }
+    });
+
+    // Disconnect all other socket clients of the user
+    socket.on("disconnectOtherSocketClients", async () => {
+        try {
+            checkLogin(socket);
+            server.disconnectAllSocketClients(socket.userID, socket.id);
+        } catch (e) {
+            log.warn("disconnectAllSocketClients", e.message);
+        }
+    });
 };
