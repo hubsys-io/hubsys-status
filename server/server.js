@@ -54,7 +54,10 @@ if (!process.env.UPTIME_KUMA_WS_ORIGIN_CHECK) {
 
 log.info("server", "Node Env: " + process.env.NODE_ENV);
 log.info("server", "Inside Container: " + (process.env.UPTIME_KUMA_IS_CONTAINER === "1"));
-log.info("server", "WebSocket Origin Check: " + process.env.UPTIME_KUMA_WS_ORIGIN_CHECK);
+
+if (process.env.UPTIME_KUMA_WS_ORIGIN_CHECK === "bypass") {
+    log.warn("server", "WebSocket Origin Check: " + process.env.UPTIME_KUMA_WS_ORIGIN_CHECK);
+}
 
 log.info("server", "Importing Node libraries");
 const fs = require("fs");
@@ -1151,7 +1154,7 @@ let needSetup = false;
                 let user = await doubleCheckPassword(socket, password.currentPassword);
                 await user.resetPassword(password.newPassword);
 
-                server.disconnectAllSocketClient(user.id, socket.id);
+                server.disconnectAllSocketClients(user.id, socket.id);
 
                 callback({
                     ok: true,
@@ -1200,6 +1203,12 @@ let needSetup = false;
                 const currentDisabledAuth = await setting("disableAuth");
                 if (!currentDisabledAuth && data.disableAuth) {
                     await doubleCheckPassword(socket, currentPassword);
+                }
+
+                // Log out all clients if enabling auth
+                // GHSA-23q2-5gf8-gjpp
+                if (currentDisabledAuth && !data.disableAuth) {
+                    server.disconnectAllSocketClients(socket.userID, socket.id);
                 }
 
                 const previousChromeExecutable = await Settings.get("chromeExecutable");
