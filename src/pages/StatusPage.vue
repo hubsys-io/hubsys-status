@@ -432,7 +432,7 @@ export default {
             incident: null,
             previousIncident: null,
             showImageCropUpload: false,
-            imgDataUrl: "/icon.svg",
+            imgDataUrl: "/icon.png",
             loadedTheme: false,
             loadedData: false,
             baseURL: "",
