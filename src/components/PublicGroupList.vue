@@ -38,6 +38,15 @@
                                             <font-awesome-icon v-if="editMode" icon="arrows-alt-v" class="action drag me-3" />
                                             <font-awesome-icon v-if="editMode" icon="times" class="action remove me-3" @click="removeMonitor(group.index, monitor.index)" />
 
+                                            <span
+                                                title="Minimize"
+                                                @click="toggleMinimize" 
+                                                class="action me-3" 
+                                                style="cursor: pointer;"
+                                            >
+                                                <font-awesome-icon :icon="isMinimized ? 'chevron-down' : 'chevron-up'" />
+                                            </span>
+
                                             <Uptime :monitor="monitor.element" type="24" :pill="true" />
                                             <a
                                                 v-if="showLink(monitor)"
@@ -73,6 +82,17 @@
                                     <div :key="$root.userHeartbeatBar" class="col-3 col-md-4">
                                         <HeartbeatBar size="mid" :monitor-id="monitor.element.id" />
                                     </div>
+
+                                    <transition 
+                                        name="fade" 
+                                        @before-enter="beforeEnter" 
+                                        @enter="enter" 
+                                        @leave="leave"
+                                    >
+                                        <div v-if="!isMinimized" >
+                                            <PingChart :monitor-id="monitor.element.id" />
+                                        </div>
+                                    </transition>
                                 </div>
                             </div>
                         </template>
@@ -85,11 +105,14 @@
 </template>
 
 <script>
+import { defineAsyncComponent } from "vue";
 import MonitorSettingDialog from "./MonitorSettingDialog.vue";
 import Draggable from "vuedraggable";
 import HeartbeatBar from "./HeartbeatBar.vue";
 import Uptime from "./Uptime.vue";
 import Tag from "./Tag.vue";
+
+const PingChart = defineAsyncComponent(() => import("../components/PingChart.vue"));
 
 export default {
     components: {
@@ -98,6 +121,7 @@ export default {
         HeartbeatBar,
         Uptime,
         Tag,
+        PingChart
     },
     props: {
         /** Are we in edit mode? */
@@ -116,7 +140,7 @@ export default {
     },
     data() {
         return {
-
+            isMinimized: true,
         };
     },
     computed: {
@@ -134,6 +158,33 @@ export default {
          */
         removeGroup(index) {
             this.$root.publicGroupList.splice(index, 1);
+        },
+
+        /**
+         * Toggle the minimized state
+         */
+        toggleMinimize() {
+            this.isMinimized = !this.isMinimized;
+        },
+
+        beforeEnter(el) {
+            el.style.opacity = 0;
+            el.style.transform = 'translateY(-10px)';
+        },
+
+        enter(el, done) {
+            el.offsetHeight;
+            el.style.transition = 'opacity 0.5s, transform 0.5s';
+            el.style.opacity = 1;
+            el.style.transform = 'translateY(0)';
+            done();
+        },
+
+        leave(el, done) {
+            el.style.transition = 'opacity 0.5s, transform 0.5s';
+            el.style.opacity = 0;
+            el.style.transform = 'translateY(-10px)';
+            done();
         },
 
         /**
@@ -265,6 +316,14 @@ export default {
 
 .bg-maintenance {
     background-color: $maintenance;
+}
+
+.fade-enter-active, .fade-leave-active {
+    transition: opacity 0.5s, transform 0.5s;
+}
+.fade-enter, .fade-leave-to {
+    opacity: 0;
+    transform: translateY(-10px);
 }
 
 </style>
