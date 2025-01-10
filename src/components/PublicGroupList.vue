@@ -1,17 +1,13 @@
 <template>
     <!-- Group List -->
-    <Draggable
-        v-model="$root.publicGroupList"
-        :disabled="!editMode"
-        item-key="id"
-        :animation="100"
-    >
+    <Draggable v-model="$root.publicGroupList" :disabled="!editMode" item-key="id" :animation="100">
         <template #item="group">
             <div class="mb-5 ">
                 <!-- Group Title -->
                 <h2 class="group-title">
                     <font-awesome-icon v-if="editMode && showGroupDrag" icon="arrows-alt-v" class="action drag me-3" />
-                    <font-awesome-icon v-if="editMode" icon="times" class="action remove me-3" @click="removeGroup(group.index)" />
+                    <font-awesome-icon v-if="editMode" icon="times" class="action remove me-3"
+                        @click="removeGroup(group.index)" />
                     <Editable v-model="group.element.name" :contenteditable="editMode" tag="span" />
                 </h2>
 
@@ -22,60 +18,47 @@
 
                     <!-- Monitor List -->
                     <!-- animation is not working, no idea why -->
-                    <Draggable
-                        v-model="group.element.monitorList"
-                        class="monitor-list"
-                        group="same-group"
-                        :disabled="!editMode"
-                        :animation="100"
-                        item-key="id"
-                    >
+                    <Draggable v-model="group.element.monitorList" class="monitor-list" group="same-group"
+                        :disabled="!editMode" :animation="100" item-key="id">
                         <template #item="monitor">
-                            <div class="item">
+                            <div class="item" :data-monitor-id="monitor.element.id">
                                 <div class="row">
                                     <div class="col-9 col-md-8 small-padding">
                                         <div class="info">
-                                            <font-awesome-icon v-if="editMode" icon="arrows-alt-v" class="action drag me-3" />
-                                            <font-awesome-icon v-if="editMode" icon="times" class="action remove me-3" @click="removeMonitor(group.index, monitor.index)" />
+                                            <font-awesome-icon v-if="editMode" icon="arrows-alt-v"
+                                                class="action drag me-3" />
+                                            <font-awesome-icon v-if="editMode" icon="times" class="action remove me-3"
+                                                @click="removeMonitor(group.index, monitor.index)" />
 
-                                            <span
-                                                title="Minimize"
-                                                @click="toggleMinimize" 
-                                                class="action me-3" 
-                                                style="cursor: pointer;"
-                                            >
-                                                <font-awesome-icon :icon="isMinimized ? 'chevron-down' : 'chevron-up'" />
+                                            <span title="Minimize" @click="toggleMinimize(monitor.element.id)"
+                                                class="action me-3" style="cursor: pointer;">
+                                                <font-awesome-icon
+                                                    :icon="minimizedMonitors[monitor.element.id] ? 'chevron-down' : 'chevron-up'" />
                                             </span>
 
                                             <Uptime :monitor="monitor.element" type="24" :pill="true" />
-                                            <a
-                                                v-if="showLink(monitor)"
-                                                :href="monitor.element.url"
-                                                class="item-name"
-                                                target="_blank"
-                                                rel="noopener noreferrer"
-                                            >
+                                            <a v-if="showLink(monitor)" :href="monitor.element.url" class="item-name"
+                                                target="_blank" rel="noopener noreferrer">
                                                 {{ monitor.element.name }}
                                             </a>
                                             <p v-else class="item-name"> {{ monitor.element.name }} </p>
 
-                                            <span
-                                                title="Setting"
-                                            >
-                                                <font-awesome-icon
-                                                    v-if="editMode"
-                                                    :class="{'link-active': true, 'btn-link': true}"
-                                                    icon="cog" class="action me-3"
-                                                    @click="$refs.monitorSettingDialog.show(group, monitor)"
-                                                />
+                                            <span title="Setting">
+                                                <font-awesome-icon v-if="editMode"
+                                                    :class="{ 'link-active': true, 'btn-link': true }" icon="cog"
+                                                    class="action me-3"
+                                                    @click="$refs.monitorSettingDialog.show(group, monitor)" />
                                             </span>
                                         </div>
                                         <div class="extra-info">
-                                            <div v-if="showCertificateExpiry && monitor.element.certExpiryDaysRemaining">
-                                                <Tag :item="{name: $t('Cert Exp.'), value: formattedCertExpiryMessage(monitor), color: certExpiryColor(monitor)}" :size="'sm'" />
+                                            <div
+                                                v-if="showCertificateExpiry && monitor.element.certExpiryDaysRemaining">
+                                                <Tag :item="{ name: $t('Cert Exp.'), value: formattedCertExpiryMessage(monitor), color: certExpiryColor(monitor) }"
+                                                    :size="'sm'" />
                                             </div>
                                             <div v-if="showTags">
-                                                <Tag v-for="tag in monitor.element.tags" :key="tag" :item="tag" :size="'sm'" />
+                                                <Tag v-for="tag in monitor.element.tags" :key="tag" :item="tag"
+                                                    :size="'sm'" />
                                             </div>
                                         </div>
                                     </div>
@@ -83,19 +66,15 @@
                                         <HeartbeatBar size="mid" :monitor-id="monitor.element.id" />
                                     </div>
 
-                                    <transition 
-                                        name="fade" 
-                                        @before-enter="beforeEnter" 
-                                        @enter="enter" 
-                                        @leave="leave"
-                                    >
-                                        <div v-if="!isMinimized" >
+                                    <transition name="fade" @before-enter="beforeEnter" @enter="enter" @leave="leave">
+                                        <div v-if="!minimizedMonitors[monitor.element.id]">
                                             <PingChart :monitor-id="monitor.element.id" />
                                         </div>
                                     </transition>
                                 </div>
                             </div>
                         </template>
+
                     </Draggable>
                 </div>
             </div>
@@ -140,7 +119,7 @@ export default {
     },
     data() {
         return {
-            isMinimized: true,
+            minimizedMonitors: {},
         };
     },
     computed: {
@@ -150,6 +129,19 @@ export default {
     },
     created() {
 
+    },
+    mounted() {
+        if (Array.isArray(this.$root.publicGroupList)) {
+            this.$root.publicGroupList.forEach(group => {
+                if (group && Array.isArray(group.monitorList)) {
+                    group.monitorList.forEach(monitor => {
+                        if (monitor && monitor.id !== undefined) {
+                            this.minimizedMonitors[monitor.id] = true;
+                        }
+                    });
+                }
+            });
+        }
     },
     methods: {
         /**
@@ -163,8 +155,8 @@ export default {
         /**
          * Toggle the minimized state
          */
-        toggleMinimize() {
-            this.isMinimized = !this.isMinimized;
+        toggleMinimize(monitorId) {
+            this.minimizedMonitors[monitorId] = !this.minimizedMonitors[monitorId];
         },
 
         beforeEnter(el) {
